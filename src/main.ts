@@ -4,9 +4,12 @@ import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module';
 import { type AppConfig } from './config';
+import { getLogLevels } from './config/logger.config';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: getLogLevels(),
+  });
   const logger = new Logger('Bootstrap');
 
   const configService = app.get(ConfigService);
