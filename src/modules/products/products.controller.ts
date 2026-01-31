@@ -1,7 +1,7 @@
 import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 
-import { Product } from './entities/product.entity.js';
-import { ProductsService } from './products.service.js';
+import { Product } from './entities/product.entity';
+import { ProductsService } from './products.service';
 
 @Controller('products')
 export class ProductsController {

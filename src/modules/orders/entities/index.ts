@@ -1,2 +1,2 @@
-export { Order, OrderStatus } from './order.entity.js';
-export { OrderItem } from './order-item.entity.js';
+export { Order, OrderStatus } from './order.entity';
+export { OrderItem } from './order-item.entity';

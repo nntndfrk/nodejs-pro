@@ -1,7 +1,7 @@
 import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 
-import { Order } from './entities/order.entity.js';
-import { OrdersService } from './orders.service.js';
+import { Order } from './entities/order.entity';
+import { OrdersService } from './orders.service';
 
 @Controller('orders')
 export class OrdersController {

@@ -8,8 +8,8 @@ import {
   JoinColumn,
 } from 'typeorm';
 
-import { User } from '../../users/entities/user.entity.js';
-import { OrderItem } from './order-item.entity.js';
+import { User } from '../../users/entities/user.entity';
+import { OrderItem } from './order-item.entity';
 
 export enum OrderStatus {
   PENDING = 'pending',

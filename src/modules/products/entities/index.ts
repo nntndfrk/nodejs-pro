@@ -1,1 +1,1 @@
-export { Product } from './product.entity.js';
+export { Product } from './product.entity';

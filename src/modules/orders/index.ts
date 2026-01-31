@@ -1,1 +1,1 @@
-export * from './orders.module.js';
+export * from './orders.module';
