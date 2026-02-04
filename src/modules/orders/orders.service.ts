@@ -1,9 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 
@@ -46,9 +41,7 @@ export class OrdersService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
-    this.logger.log(
-      `Starting order transaction (idempotencyKey=${dto.idempotencyKey})`,
-    );
+    this.logger.log(`Starting order transaction (idempotencyKey=${dto.idempotencyKey})`);
 
     try {
       // 1. Idempotency check: return existing order if key already used
@@ -90,9 +83,7 @@ export class OrdersService {
       if (products.length !== productIds.length) {
         const foundIds = new Set(products.map((p) => p.id));
         const missing = productIds.filter((id) => !foundIds.has(id));
-        throw new NotFoundException(
-          `Products not found: ${missing.join(', ')}`,
-        );
+        throw new NotFoundException(`Products not found: ${missing.join(', ')}`);
       }
 
       // Build a lookup map for quick access
@@ -106,9 +97,7 @@ export class OrdersService {
         const product = productMap.get(item.productId);
 
         if (!product) {
-          throw new NotFoundException(
-            `Product with id ${item.productId} not found`,
-          );
+          throw new NotFoundException(`Product with id ${item.productId} not found`);
         }
 
         if (product.stock < item.quantity) {
@@ -156,8 +145,7 @@ export class OrdersService {
     } catch (error) {
       await queryRunner.rollbackTransaction();
 
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(
         `Order transaction rolled back (idempotencyKey=${dto.idempotencyKey}): ${errorMessage}`,
       );

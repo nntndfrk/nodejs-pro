@@ -31,15 +31,11 @@ async function seed(): Promise<void> {
   const productRepo = dataSource.getRepository(Product);
 
   // Seed users
-  const savedUsers = await userRepo.save(
-    users.map((u) => userRepo.create(u)),
-  );
+  const savedUsers = await userRepo.save(users.map((u) => userRepo.create(u)));
   console.log(`Seeded ${String(savedUsers.length)} users.`);
 
   // Seed products
-  const savedProducts = await productRepo.save(
-    products.map((p) => productRepo.create(p)),
-  );
+  const savedProducts = await productRepo.save(products.map((p) => productRepo.create(p)));
   console.log(`Seeded ${String(savedProducts.length)} products.`);
 
   // Print summary
