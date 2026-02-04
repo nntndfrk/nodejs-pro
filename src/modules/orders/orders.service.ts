@@ -18,8 +18,30 @@ export class OrdersService {
     private readonly dataSource: DataSource,
   ) {}
 
-  public async findAll(): Promise<Order[]> {
-    return this.ordersRepository.find({ relations: ['items'] });
+  public async findAll(filters?: {
+    status?: OrderStatus | undefined;
+    dateFrom?: string | undefined;
+    dateTo?: string | undefined;
+  }): Promise<Order[]> {
+    const qb = this.ordersRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.items', 'item')
+      .leftJoinAndSelect('item.product', 'product')
+      .orderBy('order.createdAt', 'DESC');
+
+    if (filters?.status !== undefined) {
+      qb.andWhere('order.status = :status', { status: filters.status });
+    }
+
+    if (filters?.dateFrom !== undefined) {
+      qb.andWhere('order."createdAt" >= :dateFrom', { dateFrom: filters.dateFrom });
+    }
+
+    if (filters?.dateTo !== undefined) {
+      qb.andWhere('order."createdAt" <= :dateTo', { dateTo: filters.dateTo });
+    }
+
+    return qb.getMany();
   }
 
   public async findById(id: string): Promise<Order | null> {
