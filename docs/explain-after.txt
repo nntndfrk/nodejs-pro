@@ -1,0 +1,170 @@
+===============================================================================
+EXPLAIN ANALYZE — After Indexes
+Dataset: ~50,500 orders, ~65,474 order_items, 10 products, 5 users
+
+Indexes added (migration AddOrderIndexes1770549096000):
+  1. IDX_orders_status_createdAt  — composite on orders(status, createdAt DESC)
+  2. IDX_order_items_orderId      — on order_items(orderId)
+  3. IDX_orders_userId            — on orders(userId)
+===============================================================================
+
+--- Query 1: Orders filtered by status + date range, joined with items + products ---
+
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT
+  o.id,
+  o."userId",
+  o."totalPrice",
+  o.status,
+  o."createdAt",
+  oi.id AS item_id,
+  oi."productId",
+  oi.quantity,
+  oi.price AS item_price,
+  p.name AS product_name
+FROM orders o
+JOIN order_items oi ON oi."orderId" = o.id
+JOIN products p ON p.id = oi."productId"
+WHERE o.status = 'confirmed'
+  AND o."createdAt" BETWEEN '2025-01-01' AND '2026-12-31'
+ORDER BY o."createdAt" DESC;
+
+ Sort  (cost=3950.69..3987.53 rows=14739 width=107) (actual time=55.281..58.643 rows=14816 loops=1)
+   Sort Key: o."createdAt" DESC
+   Sort Method: quicksort  Memory: 2324kB
+   Buffers: shared hit=1386
+   ->  Hash Join  (cost=1303.50..2930.21 rows=14739 width=107) (actual time=7.540..49.620 rows=14816 loops=1)
+         Hash Cond: (oi."productId" = p.id)
+         Buffers: shared hit=1383
+         ->  Hash Join  (cost=1302.27..2873.89 rows=14739 width=92) (actual time=7.517..42.498 rows=14816 loops=1)
+               Hash Cond: (oi."orderId" = o.id)
+               Buffers: shared hit=1382
+               ->  Seq Scan on order_items oi  (cost=0.00..1399.74 rows=65474 width=58) (actual time=0.002..14.999 rows=65474 loops=1)
+                     Buffers: shared hit=745
+               ->  Hash  (cost=1160.17..1160.17 rows=11368 width=50) (actual time=7.481..7.483 rows=11413 loops=1)
+                     Buckets: 16384  Batches: 1  Memory Usage: 1109kB
+                     Buffers: shared hit=637
+                     ->  Bitmap Heap Scan on orders o  (cost=385.23..1160.17 rows=11368 width=50) (actual time=0.445..4.197 rows=11413 loops=1)
+                           Recheck Cond: ((status = 'confirmed') AND ("createdAt" >= '2025-01-01') AND ("createdAt" <= '2026-12-31'))
+                           Heap Blocks: exact=576
+                           Buffers: shared hit=637
+                           ->  Bitmap Index Scan on "IDX_orders_status_createdAt"  (cost=0.00..382.39 rows=11368 width=0) (actual time=0.403..0.404 rows=11413 loops=1)
+                                 Index Cond: ((status = 'confirmed') AND ("createdAt" >= '2025-01-01') AND ("createdAt" <= '2026-12-31'))
+                                 Buffers: shared hit=61
+
+Observations (vs. Before):
+- BEFORE: Seq Scan on orders — scanned all rows, filtered 67% in WHERE clause
+- AFTER:  Bitmap Index Scan on IDX_orders_status_createdAt — directly locates
+  matching rows by status+createdAt range. Only 61 shared_buffers for the index
+  lookup vs 8 pages for the full Seq Scan (note: before dataset was 500 rows / 8 pages;
+  after dataset is 50,500 rows / 637 pages — the index prevents scanning all 637 pages)
+- The planner chose Bitmap Index Scan + Bitmap Heap Scan, which is optimal for
+  medium-selectivity queries (11,413 of 50,500 = ~22% of rows)
+- order_items still uses Seq Scan for the Hash Join because >65k rows need joining;
+  this is correct — the planner estimates Hash Join + Seq Scan is cheaper than
+  Nested Loop + Index Scan for this cardinality
+
+--- Query 1b: Narrower date range (status + createdAt between '2026-01-01' and '2026-02-08') ---
+
+ ->  Bitmap Heap Scan on orders o  (cost=23.97..633.46 rows=602 width=50) (actual time=0.072..0.767 rows=625 loops=1)
+       Recheck Cond: ((status = 'confirmed') AND ("createdAt" >= '2026-01-01') AND ("createdAt" <= '2026-02-08'))
+       Heap Blocks: exact=381
+       Buffers: shared hit=387
+       ->  Bitmap Index Scan on "IDX_orders_status_createdAt"  (cost=0.00..23.82 rows=602 width=0) (actual time=0.049..0.050 rows=625 loops=1)
+             Index Cond: ((status = 'confirmed') AND ("createdAt" >= '2026-01-01') AND ("createdAt" <= '2026-02-08'))
+             Buffers: shared hit=6
+
+Observations:
+- With a narrower range (625 rows / ~1.2% selectivity), the Bitmap Index Scan
+  is even more efficient — only 6 shared_buffers for the index scan
+- The cost drops from 385 to 24, demonstrating the index's effectiveness
+  at different selectivity levels
+
+--- Query 2: Orders by userId (user-specific lookup) ---
+
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT o.*, oi.*
+FROM orders o
+JOIN order_items oi ON oi."orderId" = o.id
+WHERE o."userId" = '2282a418-b47f-4248-89b5-d23214ca6b9e'
+ORDER BY o."createdAt" DESC;
+
+ Sort  (cost=1631.40..1633.06 rows=664 width=119) (actual time=30.559..30.680 rows=500 loops=1)
+   Sort Key: o."createdAt" DESC
+   Sort Method: quicksort  Memory: 110kB
+   Buffers: shared hit=758
+   ->  Hash Join  (cost=28.65..1600.27 rows=664 width=119) (actual time=0.280..30.356 rows=500 loops=1)
+         Hash Cond: (oi."orderId" = o.id)
+         Buffers: shared hit=755
+         ->  Seq Scan on order_items oi  (cost=0.00..1399.74 rows=65474 width=58) (actual time=0.003..15.015 rows=65474 loops=1)
+               Buffers: shared hit=745
+         ->  Hash  (cost=22.25..22.25 rows=512 width=61) (actual time=0.268..0.269 rows=500 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 71kB
+               Buffers: shared hit=10
+               ->  Index Scan using "IDX_orders_userId" on orders o  (cost=0.29..22.25 rows=512 width=61) (actual time=0.009..0.140 rows=500 loops=1)
+                     Index Cond: ("userId" = '2282a418-b47f-4248-89b5-d23214ca6b9e'::uuid)
+                     Buffers: shared hit=10
+
+Observations (vs. Before):
+- BEFORE: Seq Scan on orders — scanned all 500 rows with Filter on userId
+- AFTER:  Index Scan using IDX_orders_userId — directly locates 500 rows
+  from 50,500 total (~1% selectivity). Only 10 shared_buffers vs full table scan
+- The cost for the orders scan dropped from 14.25 (full Seq Scan on 500-row table)
+  to 22.25 (on 50,500-row table) — the index keeps cost low despite 100x more data
+
+--- Query 3: Single order lookup — demonstrates IDX_order_items_orderId ---
+
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT o.*, oi.*
+FROM orders o
+JOIN order_items oi ON oi."orderId" = o.id
+WHERE o.id = (SELECT id FROM orders LIMIT 1);
+
+ Nested Loop  (cost=0.60..16.65 rows=1 width=119) (actual time=0.036..0.039 rows=1 loops=1)
+   Buffers: shared hit=8
+   ->  Index Scan using PK_orders on orders o  (cost=0.29..8.31 rows=1 width=61) (actual time=0.023..0.024 rows=1 loops=1)
+         Index Cond: (id = (InitPlan 1).col1)
+         Buffers: shared hit=5
+   ->  Index Scan using "IDX_order_items_orderId" on order_items oi  (cost=0.29..8.31 rows=1 width=58) (actual time=0.010..0.011 rows=1 loops=1)
+         Index Cond: ("orderId" = (InitPlan 1).col1)
+         Buffers: shared hit=3
+ Planning Time: 0.555 ms
+ Execution Time: 0.087 ms
+
+Observations:
+- Nested Loop with Index Scan on IDX_order_items_orderId — O(log n) lookup
+  instead of full Seq Scan on 65,474 rows
+- Total execution: 0.087 ms — extremely fast for a single order retrieval
+- This index is critical for the OrdersService.findById() use case
+
+===============================================================================
+SUMMARY — Index Impact
+===============================================================================
+
+┌──────────────────────────────────┬──────────────────────┬──────────────────────┐
+│ Query                            │ Before (500 rows)    │ After (50,500 rows)  │
+├──────────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Q1: status + date filter         │ Seq Scan (all rows)  │ Bitmap Index Scan    │
+│    orders scan strategy          │ Filter: 67% removed  │ IDX_status_createdAt │
+│    buffers (orders scan)         │ 8                    │ 637 (61 for index)   │
+├──────────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Q2: userId filter                │ Seq Scan (all rows)  │ Index Scan           │
+│    orders scan strategy          │ Filter: 100% removed │ IDX_orders_userId    │
+│    buffers (orders scan)         │ 9                    │ 10                   │
+├──────────────────────────────────┼──────────────────────┼──────────────────────┤
+│ Q3: single order + items join    │ (not tested before)  │ Nested Loop +        │
+│                                  │                      │ IDX_order_items_     │
+│                                  │                      │ orderId (0.087ms)    │
+└──────────────────────────────────┴──────────────────────┴──────────────────────┘
+
+Key takeaways:
+1. IDX_orders_status_createdAt eliminates full table scans for the most common
+   "list orders" query. At ~22% selectivity, the planner correctly uses Bitmap
+   Index Scan. At ~1% selectivity, cost drops even further.
+2. IDX_orders_userId enables O(log n) lookups for user-specific queries. With
+   100x more data, the buffered page reads stay at 10 (vs full Seq Scan).
+3. IDX_order_items_orderId is used in Nested Loop joins when the outer set is
+   small (single order). For large Hash Joins, the planner correctly prefers
+   Seq Scan — this is expected and optimal.
+4. Products table (10 rows) always uses Seq Scan — correct, as it fits in a
+   single page and an index would add overhead without benefit.
