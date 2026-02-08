@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- seed script is a CLI; console is appropriate for progress output */
 import dataSource from '../data-source';
 import { User } from '../modules/users/entities/user.entity';
 import { Product } from '../modules/products/entities/product.entity';
