@@ -158,6 +158,31 @@ describe('Orders E2E', () => {
       // Product A price=10.00, quantity=3 => 30.00
       expect(parseFloat(res.body.totalPrice)).toBeCloseTo(30.0);
     });
+
+    it('should accept same product in multiple line items and deduct stock once per quantity', async () => {
+      const product = testProducts[0]!;
+      const stockBefore = (await dataSource.getRepository(Product).findOneBy({ id: product.id }))!
+        .stock;
+
+      const dto = {
+        userId: testUser.id,
+        idempotencyKey: 'order-duplicate-product-lines',
+        items: [
+          { productId: product.id, quantity: 1 },
+          { productId: product.id, quantity: 2 },
+        ],
+      };
+
+      const res = await request(app.getHttpServer()).post('/orders').send(dto).expect(201);
+
+      expect(res.body.items).toHaveLength(2);
+      // Product A price=10.00: 1*10 + 2*10 = 30.00
+      expect(parseFloat(res.body.totalPrice)).toBeCloseTo(30.0);
+
+      const stockAfter = (await dataSource.getRepository(Product).findOneBy({ id: product.id }))!
+        .stock;
+      expect(stockAfter).toBe(stockBefore - 3); // 1 + 2 deducted once per line
+    });
   });
 
   // ─── Idempotency ─────────────────────────────────────────

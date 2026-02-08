@@ -92,19 +92,22 @@ export class OrdersService {
       // 3. Pessimistic lock on product rows (FOR NO KEY UPDATE)
       //    Sorted by ID to prevent deadlocks when concurrent transactions
       //    lock overlapping product sets.
+      //    Use unique product IDs so the IN query matches our existence check when
+      //    the same product appears in multiple line items.
       const productIds = dto.items.map((item) => item.productId);
+      const uniqueProductIds = [...new Set(productIds)];
 
       const products = await queryRunner.manager
         .createQueryBuilder(Product, 'product')
         .setLock('pessimistic_write_or_fail')
-        .where('product.id IN (:...ids)', { ids: productIds })
+        .where('product.id IN (:...ids)', { ids: uniqueProductIds })
         .orderBy('product.id', 'ASC')
         .getMany();
 
-      // Verify all requested products were found
-      if (products.length !== productIds.length) {
+      // Verify all requested (unique) products were found
+      if (products.length !== uniqueProductIds.length) {
         const foundIds = new Set(products.map((p) => p.id));
-        const missing = productIds.filter((id) => !foundIds.has(id));
+        const missing = uniqueProductIds.filter((id) => !foundIds.has(id));
         throw new NotFoundException(`Products not found: ${missing.join(', ')}`);
       }
 
