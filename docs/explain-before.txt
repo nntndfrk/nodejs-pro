@@ -1,0 +1,91 @@
+===============================================================================
+EXPLAIN ANALYZE — Before Indexes
+Dataset: 500 orders, 500 order_items, 10 products, 5 users
+===============================================================================
+
+--- Query 1: Orders filtered by status + date range, joined with items + products ---
+
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT
+  o.id,
+  o."userId",
+  o."totalPrice",
+  o.status,
+  o."createdAt",
+  oi.id AS item_id,
+  oi."productId",
+  oi.quantity,
+  oi.price AS item_price,
+  p.name AS product_name
+FROM orders o
+JOIN order_items oi ON oi."orderId" = o.id
+JOIN products p ON p.id = oi."productId"
+WHERE o.status = 'confirmed'
+  AND o."createdAt" BETWEEN '2025-01-01' AND '2026-12-31'
+ORDER BY o."createdAt" DESC;
+
+ Sort  (cost=39.12..39.53 rows=166 width=108) (actual time=0.598..0.637 rows=166 loops=1)
+   Sort Key: o."createdAt" DESC
+   Sort Method: quicksort  Memory: 45kB
+   Buffers: shared hit=18
+   ->  Hash Join  (cost=20.05..33.00 rows=166 width=108) (actual time=0.164..0.523 rows=166 loops=1)
+         Hash Cond: (oi."productId" = p.id)
+         Buffers: shared hit=15
+         ->  Hash Join  (cost=18.82..31.15 rows=166 width=93) (actual time=0.140..0.418 rows=166 loops=1)
+               Hash Cond: (oi."orderId" = o.id)
+               Buffers: shared hit=14
+               ->  Seq Scan on order_items oi  (cost=0.00..11.00 rows=500 width=59) (actual time=0.002..0.115 rows=500 loops=1)
+                     Buffers: shared hit=6
+               ->  Hash  (cost=16.75..16.75 rows=166 width=50) (actual time=0.116..0.117 rows=166 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 23kB
+                     Buffers: shared hit=8
+                     ->  Seq Scan on orders o  (cost=0.00..16.75 rows=166 width=50) (actual time=0.003..0.066 rows=166 loops=1)
+                           Filter: (("createdAt" >= '2025-01-01 00:00:00+00') AND ("createdAt" <= '2026-12-31 00:00:00+00') AND (status = 'confirmed'))
+                           Rows Removed by Filter: 334
+                           Buffers: shared hit=8
+         ->  Hash  (cost=1.10..1.10 rows=10 width=31) (actual time=0.015..0.016 rows=10 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=1
+               ->  Seq Scan on products p  (cost=0.00..1.10 rows=10 width=31) (actual time=0.006..0.009 rows=10 loops=1)
+                     Buffers: shared hit=1
+ Planning Time: 0.807 ms
+ Execution Time: 0.726 ms
+
+Observations:
+- Seq Scan on orders: scans all 500 rows, filters out 334 (67% wasted reads)
+- Seq Scan on order_items: full table scan of 500 rows to hash join with orders
+- No indexes used for WHERE clause (status + createdAt) or JOIN (orderId)
+- Sort performed in-memory (quicksort), acceptable for small datasets
+
+--- Query 2: Orders by userId (user-specific lookup) ---
+
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT o.*, oi.*
+FROM orders o
+JOIN order_items oi ON oi."orderId" = o.id
+WHERE o."userId" = (SELECT id FROM users LIMIT 1)
+ORDER BY o."createdAt" DESC;
+
+ Sort  (cost=55.39..56.64 rows=500 width=151) (actual time=0.044..0.047 rows=0 loops=1)
+   Sort Key: o."createdAt" DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=14
+   ->  Hash Join  (cost=20.50..32.82 rows=500 width=151) (actual time=0.032..0.034 rows=0 loops=1)
+         Hash Cond: (oi."orderId" = o.id)
+         Buffers: shared hit=11
+         ->  Seq Scan on order_items oi  (cost=0.00..11.00 rows=500 width=59) (actual time=0.003..0.003 rows=1 loops=1)
+               Buffers: shared hit=2
+         ->  Hash  (cost=14.25..14.25 rows=500 width=92) (actual time=0.024..0.024 rows=0 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 8kB
+               Buffers: shared hit=9
+               ->  Seq Scan on orders o  (cost=0.00..14.25 rows=500 width=92) (actual time=0.023..0.023 rows=0 loops=1)
+                     Filter: ("userId" = (InitPlan 1).col1)
+                     Rows Removed by Filter: 500
+                     Buffers: shared hit=9
+ Planning Time: 0.892 ms
+ Execution Time: 0.098 ms
+
+Observations:
+- Seq Scan on orders: filters by userId, removes all 500 rows (no index)
+- Seq Scan on order_items: full scan for hash join
+- No indexes on orders.userId or order_items.orderId
