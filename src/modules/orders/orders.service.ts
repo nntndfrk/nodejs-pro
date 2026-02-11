@@ -5,6 +5,9 @@ import { DataSource, Repository } from 'typeorm';
 import { Product } from '../products/entities/product.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { type OrdersConnection } from './dto/orders-connection.type';
+import { type OrdersFilterInput } from './dto/orders-filter.input';
+import { type OrdersPaginationInput } from './dto/orders-pagination.input';
 import { OrderItem } from './entities/order-item.entity';
 import { Order, OrderStatus } from './entities/order.entity';
 
@@ -49,6 +52,48 @@ export class OrdersService {
       where: { id },
       relations: ['items'],
     });
+  }
+
+  /**
+   * Paginated query for GraphQL. Joins order items but NOT products —
+   * products are resolved lazily via DataLoader to avoid N+1.
+   */
+  public async findAllPaginated(
+    filter?: OrdersFilterInput | null,
+    pagination?: OrdersPaginationInput | null,
+  ): Promise<OrdersConnection> {
+    const limit = pagination?.limit ?? 20;
+    const offset = pagination?.offset ?? 0;
+
+    const qb = this.ordersRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.items', 'item')
+      .orderBy('order.createdAt', 'DESC')
+      .skip(offset)
+      .take(limit);
+
+    if (filter?.status !== undefined) {
+      qb.andWhere('"order".status = :status', { status: filter.status });
+    }
+
+    if (filter?.dateFrom !== undefined) {
+      qb.andWhere('"order"."createdAt" >= :dateFrom', { dateFrom: filter.dateFrom });
+    }
+
+    if (filter?.dateTo !== undefined) {
+      qb.andWhere('"order"."createdAt" <= :dateTo', { dateTo: filter.dateTo });
+    }
+
+    const [nodes, totalCount] = await qb.getManyAndCount();
+
+    return {
+      nodes,
+      totalCount,
+      pageInfo: {
+        hasNextPage: offset + limit < totalCount,
+        hasPreviousPage: offset > 0,
+      },
+    };
   }
 
   /**
