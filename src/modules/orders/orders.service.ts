@@ -73,15 +73,15 @@ export class OrdersService {
       .take(limit);
 
     if (filter?.status !== undefined) {
-      qb.andWhere('order.status = :status', { status: filter.status });
+      qb.andWhere('"order".status = :status', { status: filter.status });
     }
 
     if (filter?.dateFrom !== undefined) {
-      qb.andWhere('order."createdAt" >= :dateFrom', { dateFrom: filter.dateFrom });
+      qb.andWhere('"order"."createdAt" >= :dateFrom', { dateFrom: filter.dateFrom });
     }
 
     if (filter?.dateTo !== undefined) {
-      qb.andWhere('order."createdAt" <= :dateTo', { dateTo: filter.dateTo });
+      qb.andWhere('"order"."createdAt" <= :dateTo', { dateTo: filter.dateTo });
     }
 
     const [nodes, totalCount] = await qb.getManyAndCount();
