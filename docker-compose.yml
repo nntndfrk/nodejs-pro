@@ -35,6 +35,21 @@ services:
       postgres:
         condition: service_healthy
 
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: nodejs-pro-rustfs
+    restart: unless-stopped
+    ports:
+      - "${RUSTFS_PORT:-9000}:9000"
+      - "${RUSTFS_CONSOLE_PORT:-9001}:9001"
+    environment:
+      RUSTFS_ACCESS_KEY: ${AWS_ACCESS_KEY_ID:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    volumes:
+      - rustfs_data:/data
+
 volumes:
   pgdata:
   pgadmin_data:
+  rustfs_data:

@@ -6,7 +6,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { appConfig, type DatabaseConfig, databaseConfig, validate } from './config';
+import {
+  appConfig,
+  type DatabaseConfig,
+  databaseConfig,
+  jwtConfig,
+  s3Config,
+  validate,
+} from './config';
 import { OrdersModule } from './modules/orders';
 import { ProductsModule } from './modules/products';
 import { UsersModule } from './modules/users';
@@ -15,7 +22,7 @@ import { UsersModule } from './modules/users';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig],
+      load: [appConfig, databaseConfig, jwtConfig, s3Config],
       validate,
       envFilePath: ['.env.local', '.env'],
     }),
