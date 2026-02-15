@@ -14,6 +14,7 @@ import {
   s3Config,
   validate,
 } from './config';
+import { AuthModule } from './modules/auth';
 import { OrdersModule } from './modules/orders';
 import { ProductsModule } from './modules/products';
 import { UsersModule } from './modules/users';
@@ -50,6 +51,7 @@ import { UsersModule } from './modules/users';
       sortSchema: true,
       playground: true,
     }),
+    AuthModule,
     UsersModule,
     ProductsModule,
     OrdersModule,
