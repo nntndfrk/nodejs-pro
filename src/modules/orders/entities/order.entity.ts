@@ -44,6 +44,9 @@ export class Order {
   @Column({ type: 'varchar', length: 255, unique: true })
   public idempotencyKey!: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  public invoiceFileId!: string | null;
+
   @Field()
   @CreateDateColumn({ type: 'timestamptz' })
   public createdAt!: Date;

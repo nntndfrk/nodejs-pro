@@ -22,6 +22,9 @@ export class User {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   public role!: UserRole;
 
+  @Column({ type: 'uuid', nullable: true })
+  public avatarFileId!: string | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   public createdAt!: Date;
 }

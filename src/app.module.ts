@@ -15,8 +15,10 @@ import {
   validate,
 } from './config';
 import { AuthModule } from './modules/auth';
+import { FilesModule } from './modules/files';
 import { OrdersModule } from './modules/orders';
 import { ProductsModule } from './modules/products';
+import { StorageModule } from './modules/storage';
 import { UsersModule } from './modules/users';
 
 @Module({
@@ -52,6 +54,8 @@ import { UsersModule } from './modules/users';
       playground: true,
     }),
     AuthModule,
+    StorageModule,
+    FilesModule,
     UsersModule,
     ProductsModule,
     OrdersModule,
