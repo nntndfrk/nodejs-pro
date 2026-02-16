@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { Product } from './entities/product.entity';
 
@@ -17,5 +17,14 @@ export class ProductsService {
 
   public async findById(id: string): Promise<Product | null> {
     return this.productsRepository.findOneBy({ id });
+  }
+
+  /** Batch-load products by IDs — used by ProductLoader (DataLoader). */
+  public async findByIds(ids: string[]): Promise<Product[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return this.productsRepository.find({ where: { id: In(ids) } });
   }
 }

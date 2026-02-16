@@ -8,6 +8,7 @@ A production-ready NestJS application with modular architecture, strict TypeScri
 - **Language:** TypeScript 5.7 (strict mode)
 - **Runtime:** Node.js 24
 - **Database:** PostgreSQL 17 + TypeORM 0.3
+- **API:** REST + GraphQL (Apollo, code-first)
 - **Containers:** Podman / Docker Compose
 - **Linting:** ESLint 9 (strictTypeChecked + stylisticTypeChecked)
 - **Formatting:** Prettier 3
@@ -28,11 +29,14 @@ src/
 │   └── ...-AddOrderIndexes.ts # Performance indexes
 ├── modules/                   # Feature modules
 │   ├── users/                 # User entity & service
-│   ├── products/              # Product entity, service, controller
-│   └── orders/                # Order creation with transactions
-│       ├── dto/               # CreateOrderDto with validation
-│       ├── entities/          # Order & OrderItem entities
-│       ├── orders.service.ts  # Transactional order logic
+│   ├── products/              # Product entity, service, controller, DataLoader
+│   │   └── product.loader.ts  # Request-scoped DataLoader for batching
+│   └── orders/                # Order creation with transactions + GraphQL
+│       ├── dto/               # REST DTOs + GraphQL input/connection types
+│       ├── entities/          # Order & OrderItem entities (@Entity + @ObjectType)
+│       ├── orders.service.ts  # Transactional order logic + paginated query
+│       ├── orders.resolver.ts # GraphQL resolver (thin, delegates to service)
+│       ├── order-item.resolver.ts # Resolves product field via DataLoader
 │       ├── orders.controller.ts
 │       └── orders.module.ts
 ├── seeds/                     # Database seed scripts
@@ -105,6 +109,8 @@ npm run start:prod
 
 ## API Endpoints
 
+### REST
+
 | Method | Path            | Description                                        |
 |--------|-----------------|----------------------------------------------------|
 | POST   | `/orders`       | Create order (transactional, idempotent)           |
@@ -113,6 +119,14 @@ npm run start:prod
 | GET    | `/products`     | List all products                                  |
 | GET    | `/products/:id` | Get product by ID                                  |
 | GET    | `/`             | Health check                                       |
+
+### GraphQL
+
+**Endpoint:** `/graphql` (Playground enabled in development)
+
+| Query    | Description                                                 |
+|----------|-------------------------------------------------------------|
+| `orders` | List orders with filters (`status`, `dateFrom`, `dateTo`), pagination (`limit`, `offset`), and nested items + products via DataLoader |
 
 ### Example: Create Order
 
@@ -168,7 +182,8 @@ Environment variables are validated on startup. See `.env.example` for all optio
 
 ## Documentation
 
-- **[Homework 05 — Transactions & SQL Optimization](docs/homework05.md)** — detailed write-up on transaction implementation, pessimistic locking, idempotency, and EXPLAIN ANALYZE comparison
+- **[Homework 07 — GraphQL for Orders + DataLoader](docs/homework07.md)** — code-first schema, DataLoader batching, N+1 proof, example queries
+- **[Homework 05 — Transactions & SQL Optimization](docs/homework05.md)** — transaction implementation, pessimistic locking, idempotency, and EXPLAIN ANALYZE comparison
 - **[EXPLAIN Before](docs/explain-before.txt)** — query plans before indexing
 - **[EXPLAIN After](docs/explain-after.txt)** — query plans after indexing
 
