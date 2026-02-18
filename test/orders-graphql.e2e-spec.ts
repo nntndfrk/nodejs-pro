@@ -8,36 +8,13 @@ import request from 'supertest';
 import { type App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 
-import { appConfig, type DatabaseConfig, databaseConfig, validate } from '../src/config';
+import { appConfig, type DatabaseConfig, databaseConfig, jwtConfig, s3Config, validate } from '../src/config';
 import { OrdersModule } from '../src/modules/orders';
 import { ProductsModule } from '../src/modules/products';
 import { Product } from '../src/modules/products/entities/product.entity';
 import { UsersModule } from '../src/modules/users';
 import { User } from '../src/modules/users/entities/user.entity';
-
-const TEST_DB_NAME = 'nodejs_pro_test';
-
-async function ensureTestDatabase(): Promise<void> {
-  const adminDs = new DataSource({
-    type: 'postgres',
-    host: process.env['DB_HOST'] ?? 'localhost',
-    port: parseInt(process.env['DB_PORT'] ?? '5432', 10),
-    username: process.env['DB_USERNAME'] ?? 'postgres',
-    password: process.env['DB_PASSWORD'] ?? 'postgres',
-    database: 'postgres',
-  });
-
-  await adminDs.initialize();
-  const result = await adminDs.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [
-    TEST_DB_NAME,
-  ]);
-
-  if ((result as unknown[]).length === 0) {
-    await adminDs.query(`CREATE DATABASE "${TEST_DB_NAME}"`);
-  }
-
-  await adminDs.destroy();
-}
+import { ensureTestDatabase, TEST_DB_NAME } from './helpers/test-setup';
 
 function graphqlRequest(
   app: INestApplication<App>,
@@ -63,7 +40,7 @@ describe('Orders GraphQL E2E', () => {
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
-          load: [appConfig, databaseConfig],
+          load: [appConfig, databaseConfig, jwtConfig, s3Config],
           validate,
           envFilePath: ['.env.local', '.env'],
         }),
@@ -110,7 +87,7 @@ describe('Orders GraphQL E2E', () => {
     const productRepo = dataSource.getRepository(Product);
 
     testUser = await userRepo.save(
-      userRepo.create({ email: 'graphql-test@example.com', name: 'GraphQL Test User' }),
+      userRepo.create({ email: 'graphql-test@example.com', name: 'GraphQL Test User', passwordHash: 'test-hash' }),
     );
 
     testProducts = await productRepo.save([
