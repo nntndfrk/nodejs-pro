@@ -6,7 +6,14 @@ import request from 'supertest';
 import { type App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 
-import { appConfig, type DatabaseConfig, databaseConfig, jwtConfig, s3Config, validate } from '../src/config';
+import {
+  appConfig,
+  type DatabaseConfig,
+  databaseConfig,
+  jwtConfig,
+  s3Config,
+  validate,
+} from '../src/config';
 import { OrdersModule } from '../src/modules/orders';
 import { type Order, OrderStatus } from '../src/modules/orders/entities/order.entity';
 import { ProductsModule } from '../src/modules/products';

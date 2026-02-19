@@ -8,7 +8,14 @@ import request from 'supertest';
 import { type App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 
-import { appConfig, type DatabaseConfig, databaseConfig, jwtConfig, s3Config, validate } from '../src/config';
+import {
+  appConfig,
+  type DatabaseConfig,
+  databaseConfig,
+  jwtConfig,
+  s3Config,
+  validate,
+} from '../src/config';
 import { OrdersModule } from '../src/modules/orders';
 import { ProductsModule } from '../src/modules/products';
 import { Product } from '../src/modules/products/entities/product.entity';
@@ -87,7 +94,11 @@ describe('Orders GraphQL E2E', () => {
     const productRepo = dataSource.getRepository(Product);
 
     testUser = await userRepo.save(
-      userRepo.create({ email: 'graphql-test@example.com', name: 'GraphQL Test User', passwordHash: 'test-hash' }),
+      userRepo.create({
+        email: 'graphql-test@example.com',
+        name: 'GraphQL Test User',
+        passwordHash: 'test-hash',
+      }),
     );
 
     testProducts = await productRepo.save([
