@@ -1,4 +1,13 @@
-import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  Post,
+} from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators';
 import { type JwtPayload } from '../auth/strategies/jwt.strategy';
@@ -24,6 +33,7 @@ export class FilesController {
   }
 
   @Post('complete')
+  @HttpCode(HttpStatus.OK)
   public async complete(
     @Body() dto: CompleteRequestDto,
     @CurrentUser() user: JwtPayload,

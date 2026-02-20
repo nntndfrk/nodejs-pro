@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { DataSource, Repository } from 'typeorm';
 
 import { type JwtPayload } from '../auth/strategies/jwt.strategy';
@@ -52,7 +52,7 @@ export class FilesService {
 
     const ext = CONTENT_TYPE_EXTENSIONS[dto.contentType] ?? 'bin';
     const purpose = ENTITY_PURPOSE[dto.entityType];
-    const key = `${dto.entityType}s/${dto.entityId}/${purpose}/${uuidv4()}.${ext}`;
+    const key = `${dto.entityType}s/${dto.entityId}/${purpose}/${randomUUID()}.${ext}`;
 
     const fileRecord = this.fileRecordRepository.create({
       ownerId: currentUser.sub,

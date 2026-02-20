@@ -172,8 +172,12 @@ describe('Auth E2E', () => {
         .expect(401);
     });
 
-    it('GET /health should work without auth', async () => {
-      await request(app.getHttpServer()).get('/health').expect(200);
+    it('POST /auth/register should be accessible without auth (@Public)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({});
+
+      expect(res.status).toBe(400);
     });
 
     it('GET /products should work without auth', async () => {
