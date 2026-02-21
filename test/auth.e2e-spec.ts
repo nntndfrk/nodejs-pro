@@ -173,9 +173,7 @@ describe('Auth E2E', () => {
     });
 
     it('POST /auth/register should be accessible without auth (@Public)', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/auth/register')
-        .send({});
+      const res = await request(app.getHttpServer()).post('/auth/register').send({});
 
       expect(res.status).toBe(400);
     });
