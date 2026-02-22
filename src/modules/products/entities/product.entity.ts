@@ -30,6 +30,9 @@ export class Product {
   @VersionColumn()
   public version!: number;
 
+  @Column({ type: 'uuid', nullable: true })
+  public imageFileId!: string | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   public createdAt!: Date;
 

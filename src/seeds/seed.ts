@@ -1,14 +1,19 @@
 /* eslint-disable no-console -- seed script is a CLI; console is appropriate for progress output */
-import dataSource from '../data-source';
-import { User } from '../modules/users/entities/user.entity';
-import { Product } from '../modules/products/entities/product.entity';
+import * as bcrypt from 'bcrypt';
 
-const users: Partial<User>[] = [
-  { email: 'alice@example.com', name: 'Alice Johnson' },
-  { email: 'bob@example.com', name: 'Bob Smith' },
-  { email: 'charlie@example.com', name: 'Charlie Brown' },
-  { email: 'diana@example.com', name: 'Diana Prince' },
-  { email: 'eve@example.com', name: 'Eve Davis' },
+import dataSource from '../data-source';
+import { Product } from '../modules/products/entities/product.entity';
+import { User, UserRole } from '../modules/users/entities/user.entity';
+
+const SEED_PASSWORD = 'password123';
+const BCRYPT_SALT_ROUNDS = 10;
+
+const users: { email: string; name: string; role: UserRole }[] = [
+  { email: 'alice@example.com', name: 'Alice Johnson', role: UserRole.ADMIN },
+  { email: 'bob@example.com', name: 'Bob Smith', role: UserRole.USER },
+  { email: 'charlie@example.com', name: 'Charlie Brown', role: UserRole.USER },
+  { email: 'diana@example.com', name: 'Diana Prince', role: UserRole.USER },
+  { email: 'eve@example.com', name: 'Eve Davis', role: UserRole.USER },
 ];
 
 const products: Partial<Product>[] = [
@@ -31,18 +36,17 @@ async function seed(): Promise<void> {
   const userRepo = dataSource.getRepository(User);
   const productRepo = dataSource.getRepository(Product);
 
-  // Seed users
-  const savedUsers = await userRepo.save(users.map((u) => userRepo.create(u)));
-  console.log(`Seeded ${String(savedUsers.length)} users.`);
+  const passwordHash = await bcrypt.hash(SEED_PASSWORD, BCRYPT_SALT_ROUNDS);
 
-  // Seed products
+  const savedUsers = await userRepo.save(users.map((u) => userRepo.create({ ...u, passwordHash })));
+  console.log(`Seeded ${String(savedUsers.length)} users (password: "${SEED_PASSWORD}").`);
+
   const savedProducts = await productRepo.save(products.map((p) => productRepo.create(p)));
   console.log(`Seeded ${String(savedProducts.length)} products.`);
 
-  // Print summary
   console.log('\n--- Seeded Users ---');
   for (const user of savedUsers) {
-    console.log(`  ${user.id}  ${user.email}  (${user.name})`);
+    console.log(`  ${user.id}  ${user.email}  (${user.name})  role=${user.role}`);
   }
 
   console.log('\n--- Seeded Products ---');

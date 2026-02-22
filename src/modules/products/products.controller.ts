@@ -1,8 +1,10 @@
 import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 
+import { Public } from '../auth/decorators';
 import { Product } from './entities/product.entity';
 import { ProductsService } from './products.service';
 
+@Public()
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
