@@ -1,0 +1,21 @@
+# Dev override — use with: docker compose -f compose.yml -f compose.dev.yml up --build
+services:
+  api:
+    build:
+      target: dev
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules   # anonymous volume preserves container deps
+    command: npm run start:dev
+    ports:
+      - "3000:3000"
+      - "9229:9229"
+
+  postgres:
+    ports:
+      - "${DB_PORT:-5432}:5432"
+
+  rustfs:
+    ports:
+      - "${RUSTFS_PORT:-9000}:9000"
+      - "${RUSTFS_CONSOLE_PORT:-9001}:9001"
